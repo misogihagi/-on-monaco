@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+</head>
+<body>
+    <div id="container" style="width:800px;height:600px;border:1px solid grey"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.1/min/vs/loader.js"></script>
+    <script>
+    require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.18.1/min/vs' }});
+    require(['vs/editor/editor.main'], function() {
+    // Register a new language
+    
+monaco.languages.register({ id: 'mySpecialLanguage' });
+
+// Register a tokens provider for the language
+monaco.languages.setMonarchTokensProvider('mySpecialLanguage', {
+	// Set defaultToken to invalid to see what you do not tokenize yet
+	defaultToken: 'invalid',
+	tokenPostfix: '.ts',
+
+	josiList: [
+  'について', 'くらい', 'なのか', 'までを', 'までの',
+  'とは', 'から', 'まで', 'だけ', 'より', 'ほど', 'など',
+  'いて', 'えて', 'きて', 'けて', 'して', 'って', 'にて', 'みて',
+  'めて', 'ねて', 'では', 'には', 'は~',
+  'は', 'を', 'に', 'へ', 'で', 'と', 'が', 'の'
+	],
+
+	tararebaJosiList: [
+  'でなければ', 'ならば', 'なら', 'たら', 'れば'
+	],
+	
+	keywords:[
+'●テスト:','●','ここから','ここまで','回','間','繰返','繰り返す','反復','抜','抜ける','続','続ける','戻','戻る','先','先に','次','次に','代入','逐次実行','変数','定数','取込','エラー監視','エラー','それ','そう','関数','もしも','もし','違えば','違'
+],
+
+	operators: [
+		'<=', '>=', '==', '!=', '===', '!==', '=>', '+', '-', '**',
+		'*', '/', '%', '++', '--', '<<', '</', '>>', '>>>', '&',
+		'|', '^', '!', '~', '&&', '||', '??', '?', ':', '=', '+=', '-=',
+		'*=', '**=', '/=', '%=', '<<=', '>>=', '>>>=', '&=', '|=',
+		'^=', '@','≧','≦','≠','<>','かつ','または'
+	],
+
+	// we include these common regular expressions
+	symbols: /[=><!~?:&|+\-*\/\^%＋－×÷]+/,
+	escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f０-９Ａ-Ｆａ-ｆ]{1,4}|u[0-9A-Fa-f０-９Ａ-Ｆａ-ｆ]{4}|U[0-9A-Fa-f０-９Ａ-Ｆａ-ｆ]{8})/,
+	digits: /[0-9０-９]+(_+[0-9０-９]+)*/,
+	octaldigits: /[0-7０-７]+(_+[0-7０-７]+)*/,
+	binarydigits: /[0-1０-１]+(_+[0-1０-１]+)*/,
+	hexdigits: /[[0-9A-Fa-f０-９Ａ-Ｆａ-ｆ]+(_+[0-9A-Fa-f０-９Ａ-Ｆａ-ｆ]+)*/,
+	moji: /[a-zA-Zぁ-んァ-ヶー●\u3005\u4E00-\u9FCF]/, //アルファベット、ひらがな、カタカナ、漢字
+	regexpctl: /[(){}\[\]\$\^|\-*+?\.]/,
+	regexpesc: /\\(?:[bBdDfnrstvwWn0\\\/]|@regexpctl|c[A-Z]|x[0-9A-Fa-f０-９Ａ-Ｆａ-ｆ]{2}|u[0-9A-Fa-f０-９Ａ-Ｆａ-ｆ]{4})/,
+
+	// The main tokenizer for our languages
+	tokenizer: {
+		root: [
+			[/[{}]/, 'delimiter.bracket'],
+			{ include: 'common' }
+		],
+
+		common: [
+			// identifiers and josiList
+			[/[ぁ-ん~●回間繰反抜続戻先次代逐変定取エ関違]+/, {
+				cases: {
+					'@tararebaJosiList': 'keyword',
+					'@josiList': 'keyword',
+					'@keywords': 'keyword',
+					'@default': 'identifier'
+				}
+			}],
+
+			// whitespace
+			{ include: '@whitespace' },
+
+			//正規表現は特別に普通の文字列と区別しない。だじゃれじゃないですよ？
+			// regular expression: ensure it is terminated before beginning (otherwise it is an opeator)
+			//[/\/(?=([^\\\/]|\\.)+\/([gimsuy]*)(\s*)(\.|;|,|\)|\]|\}|$))/, { token: 'regexp', bracket: '@open', next: '@regexp' }],
+
+			// delimiters and operators
+			[/[()\[\]]/, '@brackets'],
+			[/[<>](?!@symbols)/, '@brackets'],
+			[/!(?=([^=]|$))/, 'delimiter'],
+			[/@symbols/, {
+				cases: {
+					'@operators': 'delimiter',
+					'@default': ''
+				}
+			}],
+
+			// numbers
+			[/(@digits)[eE]([\-+]?(@digits))?/, 'number.float'],
+			[/(@digits)\.(@digits)([eE][\-+]?(@digits))?/, 'number.float'],
+			[/0[xX](@hexdigits)n?/, 'number.hex'],
+			[/0[oO]?(@octaldigits)n?/, 'number.octal'],
+			[/0[bB](@binarydigits)n?/, 'number.binary'],
+			[/(@digits)n?/, 'number'],
+
+			// delimiter: after number because of .[0-9０-９] floats
+			[/[;,.]/, 'delimiter'],
+
+			// strings
+			[/"([^"\\]|\\.)*$/, 'string.invalid'],  // non-teminated string
+			[/'([^'\\]|\\.)*$/, 'string.invalid'],  // non-teminated string
+			[/"/, 'string', '@string_double'],
+			[/'/, 'string', '@string_single'],
+			[/`/, 'string', '@string_backtick'],
+			[/「/, 'string', '@string_kakko'],
+		],
+
+		whitespace: [
+			[/[ \t\r\n]+/, ''],
+			[/\/\*\*(?!\/)/, 'comment.doc', '@jsdoc'],
+			[/\/\*/, 'comment', '@comment'],
+			[/\/\/.*$/, 'comment'],
+			[/※.*$/, 'comment'],
+			[/#.*$/, 'comment'],
+			[/＃.*$/, 'comment'],
+		],
+
+		comment: [
+			[/[^\/*]+/, 'comment'],
+			[/\*\//, 'comment', '@pop'],
+			[/[\/*]/, 'comment']
+		],
+
+		jsdoc: [
+			[/[^\/*]+/, 'comment.doc'],
+			[/\*\//, 'comment.doc', '@pop'],
+			[/[\/*]/, 'comment.doc']
+		],
+
+		// We match regular expression quite precisely
+		regexp: [
+			[/(\{)([0-9０-９]+(?:,[0-9０-９]*)?)(\})/, ['regexp.escape.control', 'regexp.escape.control', 'regexp.escape.control']],
+			[/(\[)(\^?)(?=(?:[^\]\\\/]|\\.)+)/, ['regexp.escape.control', { token: 'regexp.escape.control', next: '@regexrange' }]],
+			[/(\()(\?:|\?=|\?!)/, ['regexp.escape.control', 'regexp.escape.control']],
+			[/[()]/, 'regexp.escape.control'],
+			[/@regexpctl/, 'regexp.escape.control'],
+			[/[^\\\/]/, 'regexp'],
+			[/@regexpesc/, 'regexp.escape'],
+			[/\\\./, 'regexp.invalid'],
+			[/(\/)([gimsuy]*)/, [{ token: 'regexp', bracket: '@close', next: '@pop' }, 'keyword.other']],
+		],
+
+		regexrange: [
+			[/-/, 'regexp.escape.control'],
+			[/\^/, 'regexp.invalid'],
+			[/@regexpesc/, 'regexp.escape'],
+			[/[^\]]/, 'regexp'],
+			[/\]/, { token: 'regexp.escape.control', next: '@pop', bracket: '@close' }]
+		],
+
+		string_double: [
+			[/[^\\"]+/, 'string'],
+			[/@escapes/, 'string.escape'],
+			[/\\./, 'string.escape.invalid'],
+			[/"/, 'string', '@pop']
+		],
+
+		string_single: [
+			[/[^\\']+/, 'string'],
+			[/@escapes/, 'string.escape'],
+			[/\\./, 'string.escape.invalid'],
+			[/'/, 'string', '@pop']
+		],
+
+		string_backtick: [
+			[/\$\{/, { token: 'delimiter.bracket', next: '@bracketCounting' }],
+			[/[^\\`$]+/, 'string'],
+			[/@escapes/, 'string.escape'],
+			[/\\./, 'string.escape.invalid'],
+			[/`/, 'string', '@pop']
+		],
+
+		string_kakko: [
+			[/[{｛]/, { token: 'delimiter.bracket', next: '@bracketCounting' }],
+			[/[^\\」{｛]+/, 'string'],
+			[/@escapes/, 'string.escape'],
+			[/\\./, 'string.escape.invalid'],
+			[/」/, 'string', '@pop']
+		],
+
+		bracketCounting: [
+			[/[{｛]/, 'delimiter.bracket', '@bracketCounting'],
+			[/[}｝]/, 'delimiter.bracket', '@pop'],
+			{ include: 'common' }
+		],
+	},
+});
+
+// Define a new theme that contains only rules that match this language
+
+// Register a completion item provider for the new language
+monaco.languages.registerCompletionItemProvider('mySpecialLanguage', {
+	provideCompletionItems: () => {
+		var suggestions = [{
+			label: 'simpleText',
+			kind: monaco.languages.CompletionItemKind.Text,
+			insertText: 'simpleText'
+		}, {
+			label: 'testing',
+			kind: monaco.languages.CompletionItemKind.Keyword,
+			insertText: 'testing(${1:condition})',
+			insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet
+		}, {
+			label: 'ifelse',
+			kind: monaco.languages.CompletionItemKind.Snippet,
+			insertText: [
+				'if (${1:condition}) {',
+				'\t$0',
+				'} else {',
+				'\t',
+				'}'
+			].join('\n'),
+			insertTextRules: monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet,
+			documentation: 'If-Else Statement'
+		}];
+		return { suggestions: suggestions };
+	}
+});
+
+monaco.editor.create(document.getElementById("container"), {
+	theme: 'myCoolTheme',
+	value: getCode(),
+	language: 'mySpecialLanguage'
+});
+function getCode() {
+	return '「こんにちは」と言う。'}
+    });
+</script>
+</body>
